@@ -111,3 +111,20 @@ test('aceita texto com vírgula decimal', () => {
   const r = calcular({ ...exemplo, preco: '100,00', impostos: '6' });
   perto(r.porUnidade.lucro, 39);
 });
+
+test('ponto de milhar: 2.000 vale 2000, não 2', () => {
+  const r = calcular({ ...exemplo, fixos: '2.000' });
+  assert.equal(r.valido, true);
+  assert.equal(r.periodo.lucroTotal, 1900);
+  assert.equal(calcular({ ...exemplo, fixos: '1.234.567' }).periodo.lucroTotal,
+    calcular({ ...exemplo, fixos: 1234567 }).periodo.lucroTotal);
+  assert.equal(calcular({ ...exemplo, preco: '1.000,50' }).periodo.receita,
+    calcular({ ...exemplo, preco: 1000.5 }).periodo.receita);
+});
+
+test('ponto de milhar mal formado é recusado', () => {
+  for (const v of ['1.23,4', '1..000', '12.34.567']) {
+    const r = calcular({ ...exemplo, fixos: v });
+    assert.equal(r.valido, false, v);
+  }
+});

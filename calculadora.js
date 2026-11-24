@@ -9,13 +9,21 @@ var CAMPOS = [
   { chave: 'margem', nome: 'Margem de lucro desejada' }
 ];
 
-// Aceita número ou texto; no texto, vírgula é separador decimal ("1.234,56" ou "6,5").
+// Aceita número ou texto no formato brasileiro: vírgula é decimal e ponto é milhar
+// ("1.234,56", "2.000", "6,5"). Ponto sem grupos de 3 dígitos ("6.5") vale como decimal.
+// Ponto de milhar mal formado ("1.23,4") é recusado, para não calcular errado em silêncio.
 function lerNumero(valor) {
   if (typeof valor === 'number') return valor;
   if (typeof valor !== 'string') return NaN;
   var texto = valor.trim();
   if (texto === '') return NaN;
-  if (texto.indexOf(',') !== -1) texto = texto.replace(/\./g, '').replace(',', '.');
+  var milhar = /^-?\d{1,3}(\.\d{3})+$/;
+  if (texto.indexOf(',') !== -1) {
+    if (!/^-?(\d{1,3}(\.\d{3})+|\d+),\d+$/.test(texto)) return NaN;
+    texto = texto.replace(/\./g, '').replace(',', '.');
+  } else if (milhar.test(texto)) {
+    texto = texto.replace(/\./g, '');
+  }
   if (!/^-?(\d+\.?\d*|\.\d+)$/.test(texto)) return NaN;
   return Number(texto);
 }
