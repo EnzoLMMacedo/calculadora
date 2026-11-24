@@ -124,4 +124,4 @@ function calcular(entradas) {
   };
 }
 
-if (typeof module !== 'undefined') module.exports = { calcular };
+if (typeof module !== 'undefined') module.exports = { calcular, lerNumero };
