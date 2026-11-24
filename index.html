@@ -89,7 +89,8 @@
     <section aria-labelledby="t-ideal">
       <h2 id="t-ideal">Preço ideal</h2>
       <dl>
-        <dt>Preço para atingir a margem desejada</dt><dd id="precoIdeal"></dd>
+        <dt>Preço ideal (apenas margem de contribuição)</dt><dd id="precoIdeal"></dd>
+        <dt>Preço ideal cobrindo custos fixos</dt><dd id="precoIdealComFixos"></dd>
         <dt>Valor da margem de lucro por unidade (R$)</dt><dd id="lucroNoPrecoIdeal"></dd>
       </dl>
     </section>
@@ -160,6 +161,7 @@
     mostrar('peUnidades', p.peUnidades, 'un');
     mostrar('peReais', p.peReais, 'reais');
     mostrar('precoIdeal', r.precoIdeal, 'reais');
+    mostrar('precoIdealComFixos', r.precoIdealComFixos, 'reais');
     mostrar('lucroNoPrecoIdeal', r.lucroNoPrecoIdeal, 'reais');
   }
 

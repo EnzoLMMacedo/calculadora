@@ -142,3 +142,36 @@ test('valor da margem no preço ideal: preço ideal × margem desejada', () => {
   assert.equal(impossivel.lucroNoPrecoIdeal.calculavel, false);
   semNaNNemInfinity(impossivel);
 });
+
+test('preço ideal em dois valores no exemplo padrão: 83,33 e 120,37', () => {
+  const r = calcular(exemplo);
+  assert.ok(Math.abs(r.precoIdeal.valor - 45 / 0.54) < 1e-9);
+  assert.ok(Math.abs(r.precoIdealComFixos.valor - 65 / 0.54) < 1e-9);
+  assert.equal(r.precoIdeal.valor.toFixed(2), '83.33');
+  assert.equal(r.precoIdealComFixos.valor.toFixed(2), '120.37');
+});
+
+test('quantidade zero: preço com fixos vira aviso, sem NaN ou Infinity', () => {
+  const r = calcular({ ...exemplo, quantidade: 0 });
+  assert.equal(r.valido, true);
+  assert.equal(r.precoIdeal.valor.toFixed(2), '83.33');
+  assert.equal(r.precoIdealComFixos.calculavel, false);
+  assert.match(r.precoIdealComFixos.mensagem, /quantidade vendida é zero/);
+  assert.equal(r.precoIdealComFixos.valor, undefined);
+  semNaNNemInfinity(r);
+});
+
+test('margem inválida (soma >= 100%): os dois preços viram aviso', () => {
+  for (const margem of [84, 90]) {
+    const r = calcular({ ...exemplo, margem });
+    assert.equal(r.precoIdeal.calculavel, false);
+    assert.equal(r.precoIdealComFixos.calculavel, false);
+    assert.match(r.precoIdealComFixos.mensagem, /100% ou mais/);
+  }
+});
+
+test('custos fixos zero: os dois preços ideais são iguais', () => {
+  const r = calcular({ ...exemplo, fixos: 0 });
+  assert.equal(r.precoIdealComFixos.valor, r.precoIdeal.valor);
+  assert.equal(r.precoIdealComFixos.valor.toFixed(2), '83.33');
+});

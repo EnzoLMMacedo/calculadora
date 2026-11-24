@@ -91,6 +91,12 @@ function calcular(entradas) {
   var precoIdeal = divisor <= 0
     ? naoCalculavel('Preço ideal impossível: impostos + comissões + margem desejada somam 100% ou mais.')
     : ok((b3 + b4) / divisor);
+  // Igual ao preço ideal, mas somando ao custo a parte dos custos fixos de cada unidade.
+  var precoIdealComFixos = !precoIdeal.calculavel
+    ? naoCalculavel(precoIdeal.mensagem)
+    : b7 === 0
+      ? naoCalculavel('Preço ideal cobrindo custos fixos não calculável: a quantidade vendida é zero.')
+      : ok((b3 + b4 + b8 / b7) / divisor);
 
   var receita = b2 * b7;
   var lucroTotal = limpar(receita - custoTotal * b7 - b8);
@@ -120,6 +126,7 @@ function calcular(entradas) {
       peReais: peReais
     },
     precoIdeal: precoIdeal,
+    precoIdealComFixos: precoIdealComFixos,
     lucroNoPrecoIdeal: lucroNoPrecoIdeal
   };
 }
