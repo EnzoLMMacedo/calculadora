@@ -128,3 +128,15 @@ test('ponto de milhar mal formado é recusado', () => {
     assert.equal(r.valido, false, v);
   }
 });
+
+test('margem de lucro: do período e valor em R$ no preço ideal', () => {
+  const r = calcular(exemplo);
+  perto(r.periodo.margemPeriodo.valor, 0.19, 4);
+  perto(r.lucroNoPrecoIdeal.valor, 25);
+  const semVenda = calcular({ ...exemplo, quantidade: 0 });
+  assert.equal(semVenda.periodo.margemPeriodo.calculavel, false);
+  const impossivel = calcular({ ...exemplo, margem: 84 });
+  assert.equal(impossivel.lucroNoPrecoIdeal.calculavel, false);
+  semNaNNemInfinity(semVenda);
+  semNaNNemInfinity(impossivel);
+});

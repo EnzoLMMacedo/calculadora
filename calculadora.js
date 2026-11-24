@@ -92,6 +92,15 @@ function calcular(entradas) {
     ? naoCalculavel('Preço ideal impossível: impostos + comissões + margem desejada somam 100% ou mais.')
     : ok((b3 + b4) / divisor);
 
+  var receita = b2 * b7;
+  var lucroTotal = limpar(receita - custoTotal * b7 - b8);
+  var margemPeriodo = receita === 0
+    ? naoCalculavel('Margem de lucro do período não calculável: a receita é zero.')
+    : ok(lucroTotal / receita);
+  var lucroNoPrecoIdeal = precoIdeal.calculavel
+    ? ok(precoIdeal.valor * b9)
+    : naoCalculavel(precoIdeal.mensagem);
+
   return {
     valido: true,
     porUnidade: {
@@ -103,13 +112,15 @@ function calcular(entradas) {
       markup: markup
     },
     periodo: {
-      receita: b2 * b7,
+      receita: receita,
       custosVariaveis: custoTotal * b7,
-      lucroTotal: limpar(b2 * b7 - custoTotal * b7 - b8),
+      lucroTotal: lucroTotal,
+      margemPeriodo: margemPeriodo,
       peUnidades: peUnidades,
       peReais: peReais
     },
-    precoIdeal: precoIdeal
+    precoIdeal: precoIdeal,
+    lucroNoPrecoIdeal: lucroNoPrecoIdeal
   };
 }
 

@@ -72,6 +72,7 @@
         <dt>Receita total</dt><dd id="receita"></dd>
         <dt>Custos variáveis totais</dt><dd id="custosVariaveis"></dd>
         <dt>Lucro total</dt><dd id="lucroTotal"></dd>
+        <dt>Margem de lucro do período (lucro total ÷ receita)</dt><dd id="margemPeriodo"></dd>
         <dt>Ponto de equilíbrio (unidades)</dt><dd id="peUnidades"></dd>
         <dt>Ponto de equilíbrio (R$)</dt><dd id="peReais"></dd>
       </dl>
@@ -81,6 +82,7 @@
       <h2 id="t-ideal">Preço ideal</h2>
       <dl>
         <dt>Preço para atingir a margem desejada</dt><dd id="precoIdeal"></dd>
+        <dt>Valor da margem de lucro por unidade (R$)</dt><dd id="lucroNoPrecoIdeal"></dd>
       </dl>
     </section>
   </div>
@@ -146,9 +148,11 @@
     mostrar('receita', p.receita, 'reais');
     mostrar('custosVariaveis', p.custosVariaveis, 'reais');
     mostrar('lucroTotal', p.lucroTotal, 'reais', true);
+    mostrar('margemPeriodo', p.margemPeriodo, 'pct', true);
     mostrar('peUnidades', p.peUnidades, 'un');
     mostrar('peReais', p.peReais, 'reais');
     mostrar('precoIdeal', r.precoIdeal, 'reais');
+    mostrar('lucroNoPrecoIdeal', r.lucroNoPrecoIdeal, 'reais');
   }
 
   form.addEventListener('input', atualizar);
