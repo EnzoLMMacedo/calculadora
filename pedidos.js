@@ -49,11 +49,11 @@ function resumir(produtos, lancamentos) {
       custoEntradas: 0, custoMedio: 0, custoVendas: 0, receita: 0
     };
   });
-  var erro = null;
+  var erro = null, erroEm = null;
   ordenar(lancamentos).forEach(function (l) {
     if (erro) return;
     var p = mapa[nomeChave(l.produto)];
-    if (!p) { erro = 'Lançamento de produto não cadastrado: ' + l.produto + '.'; return; }
+    if (!p) { erro = 'Lançamento de produto não cadastrado: ' + l.produto + '.'; erroEm = l; return; }
     if (l.tipo === 'entrada') {
       var novoEstoque = p.estoque + l.quantidade;
       p.custoMedio = (p.estoque * p.custoMedio + l.quantidade * l.valor) / novoEstoque;
@@ -64,6 +64,7 @@ function resumir(produtos, lancamentos) {
       if (l.quantidade > p.estoque + 1e-9) {
         erro = 'Saída de ' + l.quantidade + ' de ' + p.produto + ' em ' + l.data +
           ' é maior que o estoque nessa data (' + p.estoque + ').';
+        erroEm = l;
         return;
       }
       p.custoVendas += l.quantidade * p.custoMedio;
@@ -87,17 +88,68 @@ function resumir(produtos, lancamentos) {
   totais.margem = totais.receita === 0
     ? { calculavel: false, mensagem: 'Não calculável (sem vendas)' }
     : { calculavel: true, valor: totais.lucro / totais.receita };
-  return { porProduto: porProduto, totais: totais, erro: erro };
+  return { porProduto: porProduto, totais: totais, erro: erro, erroEm: erroEm };
+}
+
+// Quanto do produto ainda pode sair na posição de `novo` sem deixar
+// nenhuma saída seguinte sem estoque.
+function estoqueLivre(lancamentos, novo) {
+  var chave = nomeChave(novo.produto), estoque = 0, livre = Infinity, depois = false;
+  ordenar(lancamentos.concat([novo])).forEach(function (l) {
+    if (l === novo) { depois = true; livre = estoque; return; }
+    if (nomeChave(l.produto) !== chave) return;
+    estoque += l.tipo === 'entrada' ? l.quantidade : -l.quantidade;
+    if (depois) livre = Math.min(livre, estoque);
+  });
+  return Math.max(0, Math.round(livre * 1000) / 1000);
 }
 
 // Tenta incluir um lançamento; recusa se ficar estoque negativo em alguma data.
 function adicionarLancamento(produtos, lancamentos, entrada) {
   var n = normalizarLancamento(entrada, produtos);
   if (n.erro) return { erro: n.erro };
-  var novos = lancamentos.concat([n.lancamento]);
+  var novo = n.lancamento;
+  var novos = lancamentos.concat([novo]);
   var r = resumir(produtos, novos);
-  if (r.erro) return { erro: r.erro };
+  if (r.erro) {
+    if (novo.tipo === 'saida' && r.erroEm && r.erroEm !== novo) {
+      return {
+        erro: 'Saída de ' + novo.quantidade + ' de ' + novo.produto + ' em ' + novo.data +
+          ' é maior que o estoque disponível nessa data (' + estoqueLivre(lancamentos, novo) +
+          '), porque deixaria sem estoque a venda de ' + r.erroEm.data + '.'
+      };
+    }
+    return { erro: r.erro };
+  }
   return { lancamentos: novos };
+}
+
+// Valida o que veio do localStorage. Devolve { estado }, { vazio: true } ou { erro }.
+function validarEstado(texto) {
+  if (texto === null || texto === undefined || texto === '') return { vazio: true };
+  var bruto;
+  try { bruto = JSON.parse(texto); } catch (e) { return { erro: 'os dados não são um JSON válido.' }; }
+  if (!bruto || !Array.isArray(bruto.produtos) || !Array.isArray(bruto.lancamentos)) {
+    return { erro: 'faltam as listas de produtos ou de lançamentos.' };
+  }
+  var produtos = [];
+  for (var i = 0; i < bruto.produtos.length; i++) {
+    var nome = typeof bruto.produtos[i] === 'string' ? bruto.produtos[i].trim() : '';
+    if (!nome) return { erro: 'o produto nº ' + (i + 1) + ' não tem nome.' };
+    if (produtos.some(function (p) { return nomeChave(p) === nomeChave(nome); })) {
+      return { erro: 'o produto "' + nome + '" aparece repetido.' };
+    }
+    produtos.push(nome);
+  }
+  var lancamentos = [];
+  for (var j = 0; j < bruto.lancamentos.length; j++) {
+    var n = normalizarLancamento(bruto.lancamentos[j] || {}, produtos);
+    if (n.erro) return { erro: 'lançamento nº ' + (j + 1) + ': ' + n.erro };
+    lancamentos.push(n.lancamento);
+  }
+  var r = resumir(produtos, lancamentos);
+  if (r.erro) return { erro: r.erro };
+  return { estado: { produtos: produtos, lancamentos: lancamentos } };
 }
 
 // Remove o lançamento de índice i; recusa se uma saída posterior ficar sem estoque.
@@ -122,8 +174,19 @@ function numeroCSV(n) {
   return String(n).replace('.', ',');
 }
 
+// Nomes que começam com = + - @ viram fórmula no Excel; o apóstrofo impede isso.
+// Nomes que já começam com apóstrofo também ganham um, para a volta ser exata.
+function nomeParaCSV(nome) {
+  var t = String(nome);
+  return /^[=+\-@']/.test(t) ? "'" + t : t;
+}
+
+function nomeDoCSV(campo) {
+  return campo.charAt(0) === "'" ? campo.slice(1) : campo;
+}
+
 function campoCSV(texto) {
-  var t = String(texto);
+  var t = nomeParaCSV(texto);
   return /[";\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
 }
 
@@ -166,7 +229,7 @@ function lerCSV(texto) {
   for (var i = 1; i < linhas.length; i++) {
     var c = dividirLinhaCSV(linhas[i]);
     if (c.length !== 5) return { erro: 'Linha ' + (i + 1) + ': esperava 5 colunas separadas por ";".' };
-    var nome = c[1].trim();
+    var nome = nomeDoCSV(c[1].trim());
     if (!nome) return { erro: 'Linha ' + (i + 1) + ': produto vazio.' };
     if (!produtos.some(function (p) { return nomeChave(p) === nomeChave(nome); })) produtos.push(nome);
     if (c[0] === '' && c[2] === '' && c[3] === '' && c[4] === '') continue;
@@ -184,5 +247,5 @@ function lerCSV(texto) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { resumir, adicionarLancamento, removerLancamento, adicionarProduto, paraCSV, lerCSV, normalizarLancamento };
+  module.exports = { resumir, adicionarLancamento, removerLancamento, adicionarProduto, paraCSV, lerCSV, normalizarLancamento, validarEstado };
 }

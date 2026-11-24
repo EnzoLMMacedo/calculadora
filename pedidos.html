@@ -3,43 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Entradas e saídas por produto</title>
+<title>Entradas e saídas por produto · T4</title>
+<link rel="stylesheet" href="estilos.css">
 <style>
-  :root{--fundo:#0a0a0a;--cartao:#141414;--borda:#262626;--borda-input:#737373;--texto:#fafafa;--apoio:#a3a3a3;--destaque:#facc15;--critico:#ff5c5c}
-  *{box-sizing:border-box}
-  [hidden]{display:none!important}
-  body{margin:0;background:var(--fundo);color:var(--texto);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  main{max-width:1100px;margin:0 auto;padding:24px 16px;display:grid;gap:24px}
-  h1{margin:0;font-size:1.6rem}
-  h2{margin:0 0 12px;font-size:1.1rem;color:var(--destaque)}
-  nav a{color:var(--destaque)}
-  section{background:var(--cartao);border:1px solid var(--borda);border-radius:12px;padding:16px}
+  main{max-width:1100px;margin:0 auto;padding:24px 16px 48px;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
+  .intro{margin:0}
+  .aviso-dados{margin:0;padding:12px 16px;border:1px solid var(--critico);border-radius:12px;color:var(--critico);background:rgba(255,92,92,.08)}
+  .aviso-dados p{margin:0}
+  .aviso-dados p+p{margin-top:6px;color:var(--texto)}
+
+  .cartoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  .cartao h2{margin:0 0 6px;font-size:.9rem;font-weight:600;color:var(--apoio);border-left:0;padding-left:0}
+  .cartao .valor{margin:0;font-size:1.75rem;font-weight:800;line-height:1.2;overflow-wrap:anywhere}
+  .cartao .detalhe{margin:6px 0 0;font-size:.9rem;color:var(--apoio)}
+  .cartao.lucro{border-top:3px solid var(--marca)}
+
   .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
-  label{display:block;color:var(--apoio);font-size:.9rem}
-  input,select{display:block;width:100%;margin-top:4px;padding:10px 12px;background:var(--fundo);color:var(--texto);border:1px solid var(--borda-input);border-radius:8px;font:inherit}
-  input:focus,select:focus{outline:2px solid var(--texto);outline-offset:1px}
-  button{padding:10px 12px;background:var(--destaque);color:#0a0a0a;border:0;border-radius:8px;font:inherit;font-weight:700;cursor:pointer}
-  button.secundario{background:transparent;color:var(--texto);border:1px solid var(--borda-input)}
-  button.remover{padding:4px 10px;background:transparent;color:var(--critico);border:1px solid var(--borda);font-weight:400}
   .acoes{display:flex;flex-wrap:wrap;gap:8px}
   .mensagem{margin:8px 0 0;min-height:1.5em}
-  .erro{color:var(--critico)}
-  .ok{color:var(--apoio)}
-  .tabela{overflow-x:auto}
+
+  .tabela{overflow-x:auto;-webkit-overflow-scrolling:touch}
   table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-  th,td{padding:8px;border-bottom:1px solid var(--borda);text-align:right;white-space:nowrap}
+  th,td{padding:10px 8px;border-bottom:1px solid var(--borda);text-align:right;white-space:nowrap}
   th:first-child,td:first-child{text-align:left}
-  th{color:var(--apoio);font-weight:600}
+  th{color:var(--apoio);font-weight:600;font-size:.9rem}
+  tbody tr:hover td{background:rgba(36,106,247,.08)}
+  tfoot td{font-weight:700;border-top:2px solid var(--borda);border-bottom:0}
   .lista th:nth-child(-n+3),.lista td:nth-child(-n+3){text-align:left}
-  .negativo{color:var(--critico)}
-  .vazio{color:var(--apoio)}
+  .vazio{color:var(--discreto);text-align:left!important}
+  button.remover{padding:4px 10px;background:transparent;color:var(--critico);border:1px solid var(--borda);font-weight:400}
+  button.remover:hover{border-color:var(--critico);background:rgba(255,92,92,.1)}
+
+  .grafico{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+  .barra-linha{display:grid;grid-template-columns:minmax(80px,180px) minmax(0,1fr) auto;align-items:center;gap:12px}
+  .barra-nome{color:var(--apoio);font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .barra-trilho{height:18px;background:rgba(255,255,255,.04);border-radius:9px;overflow:hidden}
+  .barra{display:block;height:100%;width:0;min-width:2px;border-radius:9px;background:var(--marca);transition:width 600ms cubic-bezier(.2,.8,.2,1)}
+  .barra.negativa{background:var(--critico)}
+  .barra-valor{color:var(--apoio);font-size:.9rem;font-variant-numeric:tabular-nums;text-align:right;min-width:96px}
+  .barra-valor.negativo{color:var(--critico)}
+  .grafico-vazio{margin:0;color:var(--discreto)}
+
+  @media (max-width:520px){
+    .barra-linha{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}
+    .barra-trilho{grid-column:1/-1;grid-row:2}
+    .cartao .valor{font-size:1.5rem}
+  }
 </style>
 </head>
 <body>
+<header class="topo">
+  <div class="topo-conteudo">
+    <svg class="logo" role="img" aria-labelledby="logo-titulo" width="120" height="48" viewBox="0 0 132 56" xmlns="http://www.w3.org/2000/svg">
+      <title id="logo-titulo">T4</title>
+      <g fill="none" stroke="#a4acb2">
+        <circle cx="28" cy="28" r="26.5" stroke-width="1.2"/>
+        <circle cx="28" cy="28" r="22.5" stroke-width="0.8" opacity=".7"/>
+        <circle cx="28" cy="28" r="18.5" stroke-width="0.6" opacity=".45"/>
+      </g>
+      <rect x="15" y="18" width="7.5" height="7.5" rx="2" fill="#a4acb2"/>
+      <rect x="24.25" y="18" width="7.5" height="7.5" rx="2" fill="#a4acb2"/>
+      <rect x="33.5" y="18" width="7.5" height="7.5" rx="2" fill="#a4acb2"/>
+      <rect x="24.25" y="27.75" width="7.5" height="7.5" rx="2" fill="#246af7"/>
+      <text x="64" y="40" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-size="34" font-weight="900" letter-spacing="-1"><tspan fill="#ffffff">T</tspan><tspan fill="#5b8ffa">4</tspan></text>
+    </svg>
+    <h1>Entradas e saídas por produto</h1>
+    <nav><a href="./">← Calculadora de vendas e custos</a></nav>
+  </div>
+</header>
+
 <main>
-  <nav><a href="./">← Calculadora de vendas e custos</a></nav>
-  <h1>Entradas e saídas por produto</h1>
-  <p class="ok">Os dados ficam salvos só neste navegador. Use “Exportar CSV” para guardar uma cópia ou levar para outro aparelho.</p>
+  <div id="aviso-dados" class="aviso-dados" role="alert" hidden>
+    <p id="aviso-dados-texto"></p>
+    <p>Os dados originais foram guardados à parte neste navegador e nada foi apagado. Importe um CSV de backup ou comece de novo.</p>
+  </div>
+
+  <p class="intro ok">Os dados ficam salvos só neste navegador. Use “Exportar CSV” para guardar uma cópia ou levar para outro aparelho.</p>
+
+  <div class="cartoes" aria-label="Totais do período">
+    <section class="cartao" aria-labelledby="c-entradas">
+      <h2 id="c-entradas">Total de entradas</h2>
+      <p class="valor numero" id="total-entradas"></p>
+    </section>
+    <section class="cartao" aria-labelledby="c-receita">
+      <h2 id="c-receita">Total de saídas (receita)</h2>
+      <p class="valor numero" id="total-receita"></p>
+    </section>
+    <section class="cartao" aria-labelledby="c-custo">
+      <h2 id="c-custo">Custo das vendas</h2>
+      <p class="valor numero" id="total-custo"></p>
+    </section>
+    <section class="cartao lucro" aria-labelledby="c-lucro">
+      <h2 id="c-lucro">Lucro</h2>
+      <p class="valor numero" id="total-lucro"></p>
+      <p class="detalhe numero" id="total-margem"></p>
+    </section>
+  </div>
+
+  <section aria-labelledby="t-grafico">
+    <h2 id="t-grafico">Lucro por produto</h2>
+    <ol id="grafico" class="grafico"></ol>
+    <p id="grafico-vazio" class="grafico-vazio" hidden>Nenhum lançamento ainda</p>
+  </section>
 
   <section aria-labelledby="t-produto">
     <h2 id="t-produto">Cadastrar produto</h2>
@@ -65,7 +130,7 @@
 
   <section aria-labelledby="t-resumo">
     <h2 id="t-resumo">Resumo por produto</h2>
-    <div class="tabela">
+    <div class="tabela" tabindex="0" role="region" aria-labelledby="t-resumo">
       <table>
         <thead><tr><th>Produto</th><th>Entrou</th><th>Saiu</th><th>Estoque</th><th>Custo médio</th><th>Custo das vendas</th><th>Receita</th><th>Lucro</th><th>Margem</th></tr></thead>
         <tbody id="resumo"></tbody>
@@ -76,7 +141,7 @@
 
   <section aria-labelledby="t-lista">
     <h2 id="t-lista">Lançamentos</h2>
-    <div class="tabela">
+    <div class="tabela" tabindex="0" role="region" aria-labelledby="t-lista">
       <table class="lista">
         <thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Valor unitário</th><th>Total</th><th></th></tr></thead>
         <tbody id="lista"></tbody>
@@ -100,16 +165,23 @@
 <script src="pedidos.js"></script>
 <script>
   var CHAVE = 'calculadora.pedidos.v1';
-  var estado = carregar();
   var reais = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
   var numero = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
   var pct = new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  var estado = carregar();
+  var primeiroDesenho = true;
 
   function carregar() {
-    try {
-      var salvo = JSON.parse(localStorage.getItem(CHAVE));
-      if (salvo && Array.isArray(salvo.produtos) && Array.isArray(salvo.lancamentos)) return salvo;
-    } catch (e) {}
+    var texto = null;
+    try { texto = localStorage.getItem(CHAVE); } catch (e) {}
+    var r = validarEstado(texto);
+    if (r.estado) return r.estado;
+    if (r.erro) {
+      try { localStorage.setItem(CHAVE + '.inconsistente', texto); } catch (e) {}
+      document.getElementById('aviso-dados-texto').textContent =
+        'Os dados salvos neste navegador estão inconsistentes e não foram carregados: ' + r.erro;
+      document.getElementById('aviso-dados').hidden = false;
+    }
     return { produtos: [], lancamentos: [] };
   }
 
@@ -132,6 +204,14 @@
     return td;
   }
 
+  function textoMargem(m) {
+    return m.calculavel ? pct.format(m.valor) : m.mensagem;
+  }
+
+  function classeMargem(m) {
+    return m.calculavel ? (m.valor < 0 ? 'negativo' : '') : 'discreto';
+  }
+
   function linhaResumo(alvo, nome, p) {
     var tr = document.createElement('tr');
     celula(tr, nome);
@@ -142,9 +222,55 @@
     celula(tr, reais.format(p.custoVendas));
     celula(tr, reais.format(p.receita));
     celula(tr, reais.format(p.lucro), p.lucro < 0 ? 'negativo' : '');
-    celula(tr, p.margem.calculavel ? pct.format(p.margem.valor) : p.margem.mensagem,
-      p.margem.calculavel ? (p.margem.valor < 0 ? 'negativo' : '') : 'vazio');
+    celula(tr, textoMargem(p.margem), classeMargem(p.margem));
     alvo.appendChild(tr);
+  }
+
+  function desenharCartoes(t) {
+    document.getElementById('total-entradas').textContent = reais.format(t.custoEntradas);
+    document.getElementById('total-receita').textContent = reais.format(t.receita);
+    document.getElementById('total-custo').textContent = reais.format(t.custoVendas);
+    var lucro = document.getElementById('total-lucro');
+    lucro.textContent = reais.format(t.lucro);
+    lucro.classList.toggle('negativo', t.lucro < 0);
+    var margem = document.getElementById('total-margem');
+    margem.textContent = 'Margem do período: ' + textoMargem(t.margem);
+    margem.className = 'detalhe numero ' + classeMargem(t.margem);
+  }
+
+  function desenharGrafico(porProduto) {
+    var lista = document.getElementById('grafico');
+    var vazio = document.getElementById('grafico-vazio');
+    lista.textContent = '';
+    vazio.hidden = estado.lancamentos.length > 0;
+    if (!estado.lancamentos.length) return;
+    var itens = porProduto.slice().sort(function (a, b) { return b.lucro - a.lucro; });
+    var maior = itens.reduce(function (m, p) { return Math.max(m, Math.abs(p.lucro)); }, 0) || 1;
+    var barras = [];
+    itens.forEach(function (p) {
+      var li = document.createElement('li');
+      li.className = 'barra-linha';
+      var nome = document.createElement('span');
+      nome.className = 'barra-nome';
+      nome.textContent = nome.title = p.produto;
+      var trilho = document.createElement('span');
+      trilho.className = 'barra-trilho';
+      trilho.setAttribute('aria-hidden', 'true');
+      var barra = document.createElement('span');
+      barra.className = 'barra' + (p.lucro < 0 ? ' negativa' : '');
+      trilho.appendChild(barra);
+      var valor = document.createElement('span');
+      valor.className = 'barra-valor' + (p.lucro < 0 ? ' negativo' : '');
+      valor.textContent = reais.format(p.lucro);
+      li.appendChild(nome);
+      li.appendChild(trilho);
+      li.appendChild(valor);
+      lista.appendChild(li);
+      barras.push([barra, (Math.abs(p.lucro) / maior * 100).toFixed(2) + '%']);
+    });
+    function aplicar() { barras.forEach(function (b) { b[0].style.width = b[1]; }); }
+    if (primeiroDesenho) requestAnimationFrame(function () { requestAnimationFrame(aplicar); });
+    else aplicar();
   }
 
   function desenhar() {
@@ -159,6 +285,9 @@
     if (estado.produtos.indexOf(escolhido) !== -1) select.value = escolhido;
 
     var r = resumir(estado.produtos, estado.lancamentos);
+    desenharCartoes(r.totais);
+    desenharGrafico(r.porProduto);
+
     var corpo = document.getElementById('resumo');
     var rodape = document.getElementById('totais');
     corpo.textContent = '';
@@ -208,6 +337,7 @@
       celula(vazio, 'Nenhum lançamento ainda.', 'vazio').colSpan = 7;
       lista.appendChild(vazio);
     }
+    primeiroDesenho = false;
   }
 
   document.getElementById('form-produto').addEventListener('submit', function (ev) {
@@ -265,6 +395,7 @@
           !confirm('Importar vai substituir os dados atuais deste navegador. Continuar?')) return;
       estado = { produtos: r.produtos, lancamentos: r.lancamentos };
       salvar();
+      document.getElementById('aviso-dados').hidden = true;
       avisar('msg-backup', 'Importados ' + r.produtos.length + ' produtos e ' + r.lancamentos.length + ' lançamentos.');
       desenhar();
     });
