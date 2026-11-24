@@ -16,6 +16,22 @@
   .aviso{color:var(--critico);font-weight:400;font-size:.9rem;text-align:left}
   #erros{margin:0;padding:12px 16px 12px 36px;color:var(--critico);border:1px solid var(--critico);border-radius:12px;background:rgba(255,92,92,.08)}
   #erros:empty{display:none}
+  .grafico-eq{width:100%;min-width:0}
+  .grafico-eq svg{display:block;width:100%;height:auto;overflow:visible}
+  .grafico-eq text{fill:var(--apoio);font-size:12px;font-variant-numeric:tabular-nums}
+  .grafico-eq .cruzamento-rotulo{fill:var(--texto);font-weight:600}
+  .eq-grade{stroke:var(--borda);stroke-width:1}
+  .eq-eixo{stroke:var(--borda-input);stroke-width:1}
+  .eq-receita{stroke:var(--marca);stroke-width:3;fill:none;stroke-linecap:round}
+  .eq-custo{stroke:var(--apoio);stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+  .eq-guia{stroke:var(--discreto);stroke-width:1;stroke-dasharray:2 4}
+  .eq-ponto{fill:var(--texto);stroke:var(--fundo);stroke-width:2}
+  .legenda{margin:12px 0 0;display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--apoio);font-size:.9rem}
+  .legenda span{display:inline-flex;align-items:center;gap:6px}
+  .amostra{display:inline-block;width:24px;border-top:3px solid var(--marca)}
+  .amostra.custo{border-top:3px dashed var(--apoio)}
+  .legenda strong{color:var(--texto);font-weight:600}
+  #grafico-aviso{margin:0}
   @media (max-width:720px){
     main{grid-template-columns:minmax(0,1fr)}
     dl{grid-template-columns:minmax(0,1fr)}
@@ -90,6 +106,19 @@
       </dl>
     </section>
 
+    <section aria-labelledby="t-grafico">
+      <h2 id="t-grafico">Ponto de equilíbrio</h2>
+      <div id="grafico" class="grafico-eq">
+        <svg id="grafico-svg" role="img" aria-label="" xmlns="http://www.w3.org/2000/svg"></svg>
+        <p class="legenda">
+          <span><i class="amostra" aria-hidden="true"></i>Receita</span>
+          <span><i class="amostra custo" aria-hidden="true"></i>Custo total (fixos + variáveis)</span>
+          <span id="grafico-resumo"></span>
+        </p>
+      </div>
+      <p id="grafico-aviso" class="aviso" hidden></p>
+    </section>
+
     <section aria-labelledby="t-ideal">
       <h2 id="t-ideal">Preço ideal</h2>
       <dl>
@@ -150,6 +179,7 @@
         form.elements[erro.campo].setAttribute('aria-invalid', 'true');
       });
       document.querySelectorAll('dd').forEach(function (dd) { dd.textContent = '—'; dd.className = ''; });
+      desenharGrafico(null);
       return;
     }
 
@@ -176,7 +206,104 @@
     mostrar('precoIdeal', r.precoIdeal, 'reais');
     mostrar('precoIdealComFixos', r.precoIdealComFixos, 'reais');
     mostrar('lucroNoPrecoIdeal', r.lucroNoPrecoIdeal, 'reais');
+    desenharGrafico(r.grafico);
   }
+
+  var SVG = 'http://www.w3.org/2000/svg';
+  var reaisInteiros = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  var unidades = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+  var ultimoGrafico = null;
+
+  function elemento(pai, nome, atributos, texto) {
+    var el = document.createElementNS(SVG, nome);
+    for (var chave in atributos) el.setAttribute(chave, atributos[chave]);
+    if (texto !== undefined) el.textContent = texto;
+    pai.appendChild(el);
+    return el;
+  }
+
+  function desenharGrafico(grafico) {
+    ultimoGrafico = grafico;
+    var caixa = document.getElementById('grafico');
+    var aviso = document.getElementById('grafico-aviso');
+    var svg = document.getElementById('grafico-svg');
+    svg.textContent = '';
+    if (!grafico || !grafico.calculavel) {
+      caixa.hidden = true;
+      aviso.hidden = false;
+      aviso.textContent = grafico ? grafico.mensagem : 'Gráfico indisponível: corrija as entradas.';
+      return;
+    }
+    caixa.hidden = false;
+    aviso.hidden = true;
+
+    var g = grafico.valor, c = g.cruzamento, fim = g.pontos[g.pontos.length - 1];
+    // O viewBox acompanha a largura real para o texto não encolher em telas estreitas.
+    var largura = Math.max(280, Math.round(caixa.clientWidth));
+    var altura = largura < 500 ? 240 : 300;
+    var rotulosY = g.marcasY.map(function (v) { return reaisInteiros.format(v); });
+    var esquerda = 14 + 7 * Math.max.apply(null, rotulosY.map(function (t) { return t.length; }));
+    var direita = 20, topo = 14, base = 30;
+    var w = largura - esquerda - direita, h = altura - topo - base;
+    function x(q) { return esquerda + (q / g.qMax) * w; }
+    function y(v) { return topo + h - (v / g.yMax) * h; }
+
+    svg.setAttribute('viewBox', '0 0 ' + largura + ' ' + altura);
+    svg.setAttribute('width', largura);
+    svg.setAttribute('height', altura);
+    svg.setAttribute('aria-label',
+      'Gráfico do ponto de equilíbrio, de 0 a ' + unidades.format(g.qMax) + ' unidades. ' +
+      'A receita cruza o custo total em ' + inteiro.format(c.unidades) + ' unidades, ' + reais.format(c.reais) + '. ' +
+      'Em ' + unidades.format(fim.quantidade) + ' unidades: receita ' + reais.format(fim.receita) +
+      ', custo total ' + reais.format(fim.custoTotal) + '.');
+
+    g.marcasY.forEach(function (v, i) {
+      elemento(svg, 'line', { class: i ? 'eq-grade' : 'eq-eixo', x1: esquerda, x2: esquerda + w, y1: y(v), y2: y(v) });
+      elemento(svg, 'text', { x: esquerda - 8, y: y(v) + 4, 'text-anchor': 'end' }, rotulosY[i]);
+    });
+    elemento(svg, 'line', { class: 'eq-eixo', x1: esquerda, x2: esquerda, y1: topo, y2: topo + h });
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (f) {
+      var q = g.qMax * f;
+      elemento(svg, 'text', {
+        x: x(q), y: altura - 8,
+        'text-anchor': f === 0 ? 'start' : f === 1 ? 'end' : 'middle'
+      }, unidades.format(q) + (f === 1 ? ' un' : ''));
+    });
+
+    function caminho(campo) {
+      return g.pontos.map(function (p, i) {
+        return (i ? 'L' : 'M') + x(p.quantidade).toFixed(1) + ' ' + y(p[campo]).toFixed(1);
+      }).join(' ');
+    }
+    elemento(svg, 'path', { class: 'eq-custo', d: caminho('custoTotal') });
+    elemento(svg, 'path', { class: 'eq-receita', d: caminho('receita') });
+
+    var px = x(c.quantidade), py = y(c.reais);
+    elemento(svg, 'line', { class: 'eq-guia', x1: px, x2: px, y1: py, y2: topo + h });
+    elemento(svg, 'line', { class: 'eq-guia', x1: esquerda, x2: px, y1: py, y2: py });
+    elemento(svg, 'circle', { class: 'eq-ponto', cx: px, cy: py, r: 5 });
+    // Acima-à-esquerda e abaixo-à-direita do cruzamento ficam fora das duas retas.
+    var aDireita = px - 110 < esquerda;
+    var acima = aDireita ? py + 40 > topo + h : true;
+    if (acima && py - 34 < topo) acima = false;
+    var rotulo = elemento(svg, 'text', {
+      class: 'cruzamento-rotulo',
+      x: px + (aDireita ? 10 : -10),
+      y: acima ? py - 24 : py + 18,
+      'text-anchor': aDireita ? 'start' : 'end'
+    });
+    elemento(rotulo, 'tspan', { x: rotulo.getAttribute('x') }, inteiro.format(c.unidades) + ' un');
+    elemento(rotulo, 'tspan', { x: rotulo.getAttribute('x'), dy: 15 }, reais.format(c.reais));
+
+    var resumo = document.getElementById('grafico-resumo');
+    resumo.textContent = '';
+    resumo.appendChild(document.createTextNode('Equilíbrio: '));
+    var forte = document.createElement('strong');
+    forte.textContent = inteiro.format(c.unidades) + ' un · ' + reais.format(c.reais);
+    resumo.appendChild(forte);
+  }
+
+  window.addEventListener('resize', function () { desenharGrafico(ultimoGrafico); });
 
   form.addEventListener('input', atualizar);
   form.addEventListener('reset', function () { setTimeout(atualizar, 0); });

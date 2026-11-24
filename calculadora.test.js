@@ -235,3 +235,56 @@ test('meta de lucro: campo vazio é opcional; negativo ou inválido é recusado'
     assert.equal(e.erros[0].campo, 'lucroDesejado');
   }
 });
+
+const { graficoEquilibrio } = require('./calculadora.js');
+
+test('QA: falta menor que R$ 0,01 conta como meta atingida (preço 120,37)', () => {
+  const r = calcular({ ...exemplo, preco: '120,37' });
+  assert.ok(r.periodo.margemPeriodo.valor < 0.3);
+  assert.equal(r.alertas.seloMargem.valor, 'Acima da meta');
+  assert.equal(r.alertas.faltaPorUnidade.calculavel, false);
+  assert.equal(calcular({ ...exemplo, preco: '120,36' }).alertas.seloMargem.valor, 'Abaixo da meta');
+});
+
+test('gráfico: exemplo padrão vai de 0 a 200 un e cruza em 52 un / R$ 5.128,21', () => {
+  const g = calcular(exemplo).grafico;
+  assert.equal(g.calculavel, true);
+  const v = g.valor;
+  assert.equal(v.qMax, 200);
+  assert.equal(v.pontos.length, 11);
+  assert.deepEqual(v.pontos[0], { quantidade: 0, receita: 0, custoTotal: 2000 });
+  const fim = v.pontos[10];
+  assert.equal(fim.quantidade, 200);
+  perto(fim.receita, 20000);
+  perto(fim.custoTotal, 14200);
+  assert.equal(v.cruzamento.unidades, 52);
+  perto(v.cruzamento.quantidade, 51.28);
+  perto(v.cruzamento.reais, 5128.21);
+  assert.equal(v.yMax, 20000);
+  assert.deepEqual(v.marcasY, [0, 5000, 10000, 15000, 20000]);
+  semNaNNemInfinity(g);
+});
+
+test('gráfico: sem ponto de equilíbrio vira aviso, sem NaN nem Infinity', () => {
+  for (const preco of [45 / 0.84, 50, 0]) {
+    const g = calcular({ ...exemplo, preco }).grafico;
+    assert.equal(g.calculavel, false);
+    assert.match(g.mensagem, /Sem ponto de equilíbrio/);
+    assert.equal(g.valor, undefined);
+    semNaNNemInfinity(g);
+  }
+  const invalido = graficoEquilibrio({ preco: NaN, custoVariavelUnitario: 61, fixos: 2000, quantidade: 100 });
+  assert.equal(invalido.calculavel, false);
+  assert.equal(calcular({ ...exemplo, preco: 'abc' }).grafico, undefined);
+});
+
+test('gráfico: custos fixos zero cruzam na origem', () => {
+  const v = calcular({ ...exemplo, fixos: 0 }).grafico.valor;
+  assert.equal(v.qMax, 200);
+  assert.deepEqual(v.cruzamento, { quantidade: 0, unidades: 0, reais: 0 });
+  assert.equal(v.pontos[0].custoTotal, 0);
+  assert.ok(v.pontos.slice(1).every(p => p.receita > p.custoTotal));
+  const vazio = graficoEquilibrio({ preco: 100, custoVariavelUnitario: 61, fixos: 0, quantidade: 0 });
+  assert.equal(vazio.valor.qMax, 10);
+  semNaNNemInfinity(vazio);
+});
