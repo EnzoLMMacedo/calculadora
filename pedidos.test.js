@@ -44,6 +44,7 @@ test('produto sem venda: lucro 0 e margem não calculável', () => {
   assert.equal(b.receita, 0);
   assert.equal(b.lucro, 0);
   assert.equal(b.margem.calculavel, false);
+  assert.match(b.margem.mensagem, /Não calculável/);
 });
 
 test('totais somam todos os produtos', () => {

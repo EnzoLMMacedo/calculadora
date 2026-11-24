@@ -79,13 +79,13 @@ function resumir(produtos, lancamentos) {
     p.lucro = p.receita - p.custoVendas;
     p.valorEstoque = p.estoque * p.custoMedio;
     p.margem = p.receita === 0
-      ? { calculavel: false, mensagem: 'Sem vendas' }
+      ? { calculavel: false, mensagem: 'Não calculável (sem vendas)' }
       : { calculavel: true, valor: p.lucro / p.receita };
     ['qtdEntrada', 'qtdSaida', 'custoEntradas', 'custoVendas', 'receita', 'lucro'].forEach(function (k) { totais[k] += p[k]; });
     return p;
   });
   totais.margem = totais.receita === 0
-    ? { calculavel: false, mensagem: 'Sem vendas' }
+    ? { calculavel: false, mensagem: 'Não calculável (sem vendas)' }
     : { calculavel: true, valor: totais.lucro / totais.receita };
   return { porProduto: porProduto, totais: totais, erro: erro };
 }
