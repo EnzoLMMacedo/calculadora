@@ -41,6 +41,37 @@ function naoCalculavel(mensagem) {
   return { calculavel: false, mensagem: mensagem };
 }
 
+// Situação da margem do período frente à margem desejada (as duas em fração, 0,3 = 30%).
+// Acima da meta: margem >= desejada. Prejuízo: margem < 0. Abaixo da meta: o que sobra.
+function seloMargem(margemPeriodo, margemDesejada) {
+  if (!margemPeriodo.calculavel) return naoCalculavel(margemPeriodo.mensagem);
+  var m = margemPeriodo.valor;
+  if (m < 0) return ok('Prejuízo');
+  // Tolerância para ruído de ponto flutuante quando a margem bate exatamente na meta.
+  if (m >= margemDesejada - 1e-9) return ok('Acima da meta');
+  return ok('Abaixo da meta');
+}
+
+// Quanto o preço precisa subir por unidade para a margem do período chegar à desejada:
+// preço ideal cobrindo custos fixos − preço atual. Só faz sentido abaixo da meta.
+function faltaPorUnidade(selo, precoIdealComFixos, preco) {
+  if (!selo.calculavel) return naoCalculavel(selo.mensagem);
+  if (selo.valor === 'Acima da meta') return naoCalculavel('Nada: a margem do período já atinge a desejada.');
+  if (!precoIdealComFixos.calculavel) return naoCalculavel(precoIdealComFixos.mensagem);
+  return ok(Math.max(0, limpar(precoIdealComFixos.valor - preco)));
+}
+
+// Unidades para o lucro desejado no período: (fixos + lucro desejado) / lucro unitário, para cima.
+function unidadesParaMeta(fixos, lucroDesejado, lucroUnitario) {
+  if (lucroDesejado === null || lucroDesejado === undefined) {
+    return naoCalculavel('Informe o lucro desejado no período para ver as unidades necessárias.');
+  }
+  if (lucroUnitario <= 0) {
+    return naoCalculavel('Meta de lucro inalcançável: o lucro unitário é zero ou negativo.');
+  }
+  return ok(Math.ceil(Math.round(((fixos + lucroDesejado) / lucroUnitario) * 1e9) / 1e9));
+}
+
 function calcular(entradas) {
   var erros = [];
   var n = {};
@@ -55,6 +86,16 @@ function calcular(entradas) {
     if (problema) erros.push({ campo: campo.chave, mensagem: campo.nome + ': ' + problema });
     n[campo.chave] = valor;
   });
+  // Campo opcional: vazio só deixa a meta de lucro sem cálculo, sem bloquear o resto.
+  var brutoMeta = entradas ? entradas.lucroDesejado : undefined;
+  var metaVazia = brutoMeta === undefined || brutoMeta === null ||
+    (typeof brutoMeta === 'string' && brutoMeta.trim() === '');
+  var lucroDesejado = metaVazia ? null : lerNumero(brutoMeta);
+  if (!metaVazia) {
+    var problemaMeta = !isFinite(lucroDesejado) ? 'digite um número válido.'
+      : lucroDesejado < 0 ? 'não pode ser negativo.' : null;
+    if (problemaMeta) erros.push({ campo: 'lucroDesejado', mensagem: 'Lucro desejado no período: ' + problemaMeta });
+  }
   if (erros.length) return { valido: false, erros: erros };
 
   var b2 = n.preco, b3 = n.custo, b4 = n.outros, b7 = n.quantidade, b8 = n.fixos;
@@ -107,8 +148,14 @@ function calcular(entradas) {
     ? ok(precoIdeal.valor * b9)
     : naoCalculavel(precoIdeal.mensagem);
 
+  var selo = seloMargem(margemPeriodo, b9);
   return {
     valido: true,
+    alertas: {
+      seloMargem: selo,
+      faltaPorUnidade: faltaPorUnidade(selo, precoIdealComFixos, b2),
+      unidadesParaMeta: unidadesParaMeta(b8, lucroDesejado, lucro)
+    },
     porUnidade: {
       impostos: impostos,
       comissoes: comissoes,
@@ -131,4 +178,4 @@ function calcular(entradas) {
   };
 }
 
-if (typeof module !== 'undefined') module.exports = { calcular, lerNumero };
+if (typeof module !== 'undefined') module.exports = { calcular, lerNumero, seloMargem, faltaPorUnidade, unidadesParaMeta };

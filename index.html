@@ -55,6 +55,7 @@
       <label>Quantidade vendida<input name="quantidade" inputmode="decimal" value="100"></label>
       <label>Custos fixos do período (R$)<input name="fixos" inputmode="decimal" value="2000"></label>
       <label>Margem de lucro desejada (%)<input name="margem" inputmode="decimal" value="30"></label>
+      <label>Lucro desejado no período (R$)<input name="lucroDesejado" inputmode="decimal" value="3000"></label>
       <button type="reset">Restaurar exemplo</button>
     </form>
   </section>
@@ -81,8 +82,11 @@
         <dt>Custos variáveis totais</dt><dd id="custosVariaveis"></dd>
         <dt>Lucro total</dt><dd id="lucroTotal"></dd>
         <dt>Margem de lucro do período (lucro total ÷ receita)</dt><dd id="margemPeriodo"></dd>
+        <dt>Situação da margem</dt><dd id="seloMargem"></dd>
+        <dt>Quanto falta no preço, por unidade</dt><dd id="faltaPorUnidade"></dd>
         <dt>Ponto de equilíbrio (unidades)</dt><dd id="peUnidades"></dd>
         <dt>Ponto de equilíbrio (R$)</dt><dd id="peReais"></dd>
+        <dt>Unidades para o lucro desejado</dt><dd id="unidadesParaMeta"></dd>
       </dl>
     </section>
 
@@ -107,7 +111,9 @@
   var formatos = {
     reais: function (v) { return reais.format(v); },
     pct: function (v) { return decimal.format(v * 100) + '%'; },
-    un: function (v) { return inteiro.format(v) + ' un'; }
+    un: function (v) { return inteiro.format(v) + ' un'; },
+    texto: function (v) { return v; },
+    falta: function (v) { return 'Faltam ' + reais.format(v) + ' por unidade'; }
   };
 
   function mostrar(id, item, formato, destacarNegativo) {
@@ -160,6 +166,13 @@
     mostrar('margemPeriodo', p.margemPeriodo, 'pct', true);
     mostrar('peUnidades', p.peUnidades, 'un');
     mostrar('peReais', p.peReais, 'reais');
+    var a = r.alertas;
+    mostrar('seloMargem', a.seloMargem, 'texto');
+    if (a.seloMargem.calculavel && a.seloMargem.valor === 'Prejuízo') {
+      document.getElementById('seloMargem').className = 'negativo';
+    }
+    mostrar('faltaPorUnidade', a.faltaPorUnidade, 'falta');
+    mostrar('unidadesParaMeta', a.unidadesParaMeta, 'un');
     mostrar('precoIdeal', r.precoIdeal, 'reais');
     mostrar('precoIdealComFixos', r.precoIdealComFixos, 'reais');
     mostrar('lucroNoPrecoIdeal', r.lucroNoPrecoIdeal, 'reais');
