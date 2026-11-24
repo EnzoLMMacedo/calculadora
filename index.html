@@ -3,29 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Calculadora de vendas e custos</title>
+<title>Calculadora de vendas e custos · T4</title>
+<link rel="stylesheet" href="estilos.css">
 <style>
-  :root{--fundo:#0a0a0a;--cartao:#141414;--borda:#262626;--borda-input:#737373;--texto:#fafafa;--apoio:#a3a3a3;--destaque:#facc15;--critico:#ff5c5c}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--fundo);color:var(--texto);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  main{max-width:1100px;margin:0 auto;padding:24px 16px;display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:24px;align-items:start}
-  h1{grid-column:1/-1;margin:0;font-size:1.6rem;color:var(--destaque)}
-  h2{margin:0 0 12px;font-size:1.1rem;color:var(--destaque)}
-  section{background:var(--cartao);border:1px solid var(--borda);border-radius:12px;padding:16px}
+  main{max-width:1100px;margin:0 auto;padding:24px 16px 48px;display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:24px;align-items:start}
   .resultados{display:grid;gap:16px;min-width:0}
-  label{display:block;margin-bottom:12px;color:var(--apoio);font-size:.9rem}
-  input{display:block;width:100%;margin-top:4px;padding:10px 12px;background:var(--fundo);color:var(--texto);border:1px solid var(--borda-input);border-radius:8px;font:inherit}
-  input:focus{outline:2px solid var(--texto);outline-offset:1px}
-  input[aria-invalid="true"]{border-color:var(--critico)}
-  button{width:100%;margin-top:4px;padding:10px 12px;background:var(--destaque);color:#0a0a0a;border:0;border-radius:8px;font:inherit;font-weight:700;cursor:pointer}
+  label{margin-bottom:12px}
+  button{width:100%;margin-top:4px}
   dl{margin:0;display:grid;grid-template-columns:1fr auto;gap:8px 16px}
   dt{color:var(--apoio)}
   dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;overflow-wrap:anywhere}
-  .negativo{color:var(--critico)}
-  .atalho{grid-column:1/-1;margin-top:-16px}
-  .atalho a{color:var(--destaque)}
   .aviso{color:var(--critico);font-weight:400;font-size:.9rem;text-align:left}
-  #erros{margin:0;padding-left:20px;color:var(--critico)}
+  #erros{margin:0;padding:12px 16px 12px 36px;color:var(--critico);border:1px solid var(--critico);border-radius:12px;background:rgba(255,92,92,.08)}
   #erros:empty{display:none}
   @media (max-width:720px){
     main{grid-template-columns:minmax(0,1fr)}
@@ -35,10 +24,26 @@
 </style>
 </head>
 <body>
+<header class="topo">
+  <div class="topo-conteudo">
+    <svg class="logo" role="img" aria-labelledby="logo-titulo" width="120" height="48" viewBox="0 0 132 56" xmlns="http://www.w3.org/2000/svg">
+      <title id="logo-titulo">T4</title>
+      <g fill="none" stroke="#a4acb2">
+        <circle cx="28" cy="28" r="26.5" stroke-width="1.2"/>
+        <circle cx="28" cy="28" r="22.5" stroke-width="0.8" opacity=".7"/>
+        <circle cx="28" cy="28" r="18.5" stroke-width="0.6" opacity=".45"/>
+      </g>
+      <rect x="15" y="18" width="7.5" height="7.5" rx="2" fill="#a4acb2"/>
+      <rect x="24.25" y="18" width="7.5" height="7.5" rx="2" fill="#a4acb2"/>
+      <rect x="33.5" y="18" width="7.5" height="7.5" rx="2" fill="#a4acb2"/>
+      <rect x="24.25" y="27.75" width="7.5" height="7.5" rx="2" fill="#246af7"/>
+      <text x="64" y="40" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-size="34" font-weight="900" letter-spacing="-1"><tspan fill="#ffffff">T</tspan><tspan fill="#5b8ffa">4</tspan></text>
+    </svg>
+    <h1>Calculadora de vendas e custos</h1>
+    <nav><a href="pedidos.html">Entradas e saídas por produto →</a></nav>
+  </div>
+</header>
 <main>
-  <h1>Calculadora de vendas e custos</h1>
-  <nav class="atalho"><a href="pedidos.html">Entradas e saídas por produto →</a></nav>
-
   <section aria-labelledby="t-entradas">
     <h2 id="t-entradas">Entradas</h2>
     <form id="form" novalidate>
@@ -124,7 +129,7 @@
     });
     var r = calcular(entradas);
     var lista = document.getElementById('erros');
-    lista.innerHTML = '';
+    lista.textContent = '';
 
     Array.prototype.forEach.call(form.elements, function (el) {
       if (el.name) el.removeAttribute('aria-invalid');

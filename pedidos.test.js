@@ -93,6 +93,48 @@ test('vender exatamente o estoque é permitido e zera o estoque', () => {
   assert.equal(r.lancamentos[3].produto, 'Camiseta');
 });
 
+test('venda retroativa bloqueada: o aviso cita a venda recém-digitada, não a seguinte', () => {
+  const r = p.adicionarLancamento(produtos, base,
+    { data: '2026-11-07', produto: 'Camiseta', tipo: 'saida', quantidade: '16', valor: '50' });
+  assert.match(r.erro, /^Saída de 16 de Camiseta em 2026-11-07 /);
+  assert.match(r.erro, /estoque disponível nessa data \(15\)/);
+  assert.match(r.erro, /venda de 2026-11-10/);
+  const ok = p.adicionarLancamento(produtos, base,
+    { data: '2026-11-07', produto: 'Camiseta', tipo: 'saida', quantidade: '15', valor: '50' });
+  assert.equal(ok.erro, undefined);
+});
+
+test('lançamentos digitados fora da ordem de data dão o mesmo resultado', () => {
+  const embaralhados = [base[2], base[0], base[1]];
+  let lista = [];
+  const recusados = [];
+  for (const l of embaralhados) {
+    const r = p.adicionarLancamento(produtos, lista, { ...l, quantidade: String(l.quantidade), valor: String(l.valor) });
+    if (r.erro) recusados.push(l); else lista = r.lancamentos;
+  }
+  // A venda de 10/11 chega antes de qualquer entrada e é recusada; redigitada depois, entra.
+  assert.equal(recusados.length, 1);
+  lista = p.adicionarLancamento(produtos, lista, { ...base[2], quantidade: '5', valor: '50' }).lancamentos;
+  assert.deepEqual(p.resumir(produtos, lista), p.resumir(produtos, base));
+
+  const fora = [base[1], base[2], base[0]];
+  const c = p.resumir(produtos, fora).porProduto[0];
+  perto(c.custoVendas, 125);
+  perto(c.lucro, 125);
+  assert.equal(c.estoque, 15);
+});
+
+test('localStorage inconsistente vira aviso; vazio abre sem aviso', () => {
+  assert.deepEqual(p.validarEstado(null), { vazio: true });
+  const bom = p.validarEstado(JSON.stringify({ produtos, lancamentos: base }));
+  assert.deepEqual(bom.estado.lancamentos, base);
+  assert.match(p.validarEstado('{quebrado').erro, /JSON/);
+  assert.match(p.validarEstado('{"produtos":[]}').erro, /faltam/);
+  assert.match(p.validarEstado(JSON.stringify({ produtos: ['A', 'a'], lancamentos: [] })).erro, /repetido/);
+  assert.match(p.validarEstado(JSON.stringify({ produtos, lancamentos: [{ ...base[0], quantidade: -1 }] })).erro, /lançamento nº 1: Quantidade/);
+  assert.match(p.validarEstado(JSON.stringify({ produtos, lancamentos: [base[2]] })).erro, /maior que o estoque/);
+});
+
 test('remover entrada que deixaria uma venda sem estoque é recusado', () => {
   const r = p.removerLancamento(produtos, base, 0);
   assert.equal(r.erro, undefined);
@@ -134,6 +176,22 @@ test('CSV: exportar e importar devolve os mesmos dados', () => {
   assert.equal(r.erro, undefined);
   assert.deepEqual(r.produtos.slice().sort(), nomes.slice().sort());
   assert.deepEqual(r.lancamentos, base);
+});
+
+test('CSV: nomes que começam com = + - @ ganham apóstrofo e voltam iguais', () => {
+  const nomes = ['=SOMA(A1)', '+55 chip', '-desconto', '@marca', "'já tinha", 'Normal'];
+  const lanc = nomes.map((n, i) => ({ data: '2026-11-0' + (i + 1), produto: n, tipo: 'entrada', quantidade: 1, valor: 2 }));
+  const csv = p.paraCSV(nomes, lanc);
+  for (const linha of csv.trim().split('\n').slice(1)) {
+    assert.doesNotMatch(linha.split(';')[1], /^[=+\-@]/);
+  }
+  assert.match(csv, /;'=SOMA\(A1\);/);
+  assert.match(csv, /;''já tinha;/);
+  assert.match(csv, /;Normal;/);
+  const r = p.lerCSV(csv);
+  assert.equal(r.erro, undefined);
+  assert.deepEqual(r.produtos, nomes);
+  assert.deepEqual(r.lancamentos, lanc);
 });
 
 test('CSV: aceita vírgula decimal e recusa o arquivo inteiro se uma linha estiver errada', () => {
