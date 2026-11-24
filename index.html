@@ -22,6 +22,8 @@
   dt{color:var(--apoio)}
   dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;overflow-wrap:anywhere}
   .negativo{color:var(--critico)}
+  .atalho{grid-column:1/-1;margin-top:-16px}
+  .atalho a{color:var(--destaque)}
   .aviso{color:var(--critico);font-weight:400;font-size:.9rem;text-align:left}
   #erros{margin:0;padding-left:20px;color:var(--critico)}
   #erros:empty{display:none}
@@ -35,6 +37,7 @@
 <body>
 <main>
   <h1>Calculadora de vendas e custos</h1>
+  <nav class="atalho"><a href="pedidos.html">Entradas e saídas por produto →</a></nav>
 
   <section aria-labelledby="t-entradas">
     <h2 id="t-entradas">Entradas</h2>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entradas e saídas por produto</title>
+<style>
+  :root{--fundo:#0a0a0a;--cartao:#141414;--borda:#262626;--borda-input:#737373;--texto:#fafafa;--apoio:#a3a3a3;--destaque:#facc15;--critico:#ff5c5c}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--fundo);color:var(--texto);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:1100px;margin:0 auto;padding:24px 16px;display:grid;gap:24px}
+  h1{margin:0;font-size:1.6rem}
+  h2{margin:0 0 12px;font-size:1.1rem;color:var(--destaque)}
+  nav a{color:var(--destaque)}
+  section{background:var(--cartao);border:1px solid var(--borda);border-radius:12px;padding:16px}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+  label{display:block;color:var(--apoio);font-size:.9rem}
+  input,select{display:block;width:100%;margin-top:4px;padding:10px 12px;background:var(--fundo);color:var(--texto);border:1px solid var(--borda-input);border-radius:8px;font:inherit}
+  input:focus,select:focus{outline:2px solid var(--texto);outline-offset:1px}
+  button{padding:10px 12px;background:var(--destaque);color:#0a0a0a;border:0;border-radius:8px;font:inherit;font-weight:700;cursor:pointer}
+  button.secundario{background:transparent;color:var(--texto);border:1px solid var(--borda-input)}
+  button.remover{padding:4px 10px;background:transparent;color:var(--critico);border:1px solid var(--borda);font-weight:400}
+  .acoes{display:flex;flex-wrap:wrap;gap:8px}
+  .mensagem{margin:8px 0 0;min-height:1.5em}
+  .erro{color:var(--critico)}
+  .ok{color:var(--apoio)}
+  .tabela{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th,td{padding:8px;border-bottom:1px solid var(--borda);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--apoio);font-weight:600}
+  .lista th:nth-child(-n+3),.lista td:nth-child(-n+3){text-align:left}
+  .negativo{color:var(--critico)}
+  .vazio{color:var(--apoio)}
+</style>
+</head>
+<body>
+<main>
+  <nav><a href="./">← Calculadora de vendas e custos</a></nav>
+  <h1>Entradas e saídas por produto</h1>
+  <p class="ok">Os dados ficam salvos só neste navegador. Use “Exportar CSV” para guardar uma cópia ou levar para outro aparelho.</p>
+
+  <section aria-labelledby="t-produto">
+    <h2 id="t-produto">Cadastrar produto</h2>
+    <form id="form-produto" class="grade" novalidate>
+      <label>Nome do produto<input name="nome" autocomplete="off"></label>
+      <button type="submit">Adicionar produto</button>
+    </form>
+    <p id="msg-produto" class="mensagem" role="status"></p>
+  </section>
+
+  <section aria-labelledby="t-lancamento">
+    <h2 id="t-lancamento">Lançar entrada ou saída</h2>
+    <form id="form-lancamento" class="grade" novalidate>
+      <label>Produto<select name="produto"></select></label>
+      <label>Tipo<select name="tipo"><option value="entrada">Entrada (compra)</option><option value="saida">Saída (venda)</option></select></label>
+      <label>Data<input name="data" type="date"></label>
+      <label>Quantidade<input name="quantidade" inputmode="decimal"></label>
+      <label><span id="rotulo-valor">Custo unitário (R$)</span><input name="valor" inputmode="decimal"></label>
+      <button type="submit">Lançar</button>
+    </form>
+    <p id="msg-lancamento" class="mensagem" role="status"></p>
+  </section>
+
+  <section aria-labelledby="t-resumo">
+    <h2 id="t-resumo">Resumo por produto</h2>
+    <div class="tabela">
+      <table>
+        <thead><tr><th>Produto</th><th>Entrou</th><th>Saiu</th><th>Estoque</th><th>Custo médio</th><th>Custo das vendas</th><th>Receita</th><th>Lucro</th><th>Margem</th></tr></thead>
+        <tbody id="resumo"></tbody>
+        <tfoot id="totais"></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-lista">
+    <h2 id="t-lista">Lançamentos</h2>
+    <div class="tabela">
+      <table class="lista">
+        <thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Valor unitário</th><th>Total</th><th></th></tr></thead>
+        <tbody id="lista"></tbody>
+      </table>
+    </div>
+    <p id="msg-lista" class="mensagem" role="status"></p>
+  </section>
+
+  <section aria-labelledby="t-backup">
+    <h2 id="t-backup">Backup</h2>
+    <div class="acoes">
+      <button type="button" id="exportar">Exportar CSV</button>
+      <button type="button" id="importar" class="secundario">Importar CSV</button>
+      <input type="file" id="arquivo" accept=".csv,text/csv" hidden>
+    </div>
+    <p id="msg-backup" class="mensagem" role="status"></p>
+  </section>
+</main>
+
+<script src="calculadora.js"></script>
+<script src="pedidos.js"></script>
+<script>
+  var CHAVE = 'calculadora.pedidos.v1';
+  var estado = carregar();
+  var reais = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  var numero = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 });
+  var pct = new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  function carregar() {
+    try {
+      var salvo = JSON.parse(localStorage.getItem(CHAVE));
+      if (salvo && Array.isArray(salvo.produtos) && Array.isArray(salvo.lancamentos)) return salvo;
+    } catch (e) {}
+    return { produtos: [], lancamentos: [] };
+  }
+
+  function salvar() {
+    try { localStorage.setItem(CHAVE, JSON.stringify(estado)); return true; }
+    catch (e) { avisar('msg-lista', 'Não consegui salvar neste navegador. Exporte o CSV para não perder os dados.', true); return false; }
+  }
+
+  function avisar(id, texto, erro) {
+    var el = document.getElementById(id);
+    el.textContent = texto;
+    el.className = 'mensagem ' + (erro ? 'erro' : 'ok');
+  }
+
+  function celula(tr, texto, classe) {
+    var td = document.createElement('td');
+    td.textContent = texto;
+    if (classe) td.className = classe;
+    tr.appendChild(td);
+    return td;
+  }
+
+  function linhaResumo(alvo, nome, p) {
+    var tr = document.createElement('tr');
+    celula(tr, nome);
+    celula(tr, numero.format(p.qtdEntrada));
+    celula(tr, numero.format(p.qtdSaida));
+    celula(tr, p.estoque === undefined ? '' : numero.format(p.estoque));
+    celula(tr, p.custoMedio === undefined ? '' : reais.format(p.custoMedio));
+    celula(tr, reais.format(p.custoVendas));
+    celula(tr, reais.format(p.receita));
+    celula(tr, reais.format(p.lucro), p.lucro < 0 ? 'negativo' : '');
+    celula(tr, p.margem.calculavel ? pct.format(p.margem.valor) : p.margem.mensagem,
+      p.margem.calculavel ? (p.margem.valor < 0 ? 'negativo' : '') : 'vazio');
+    alvo.appendChild(tr);
+  }
+
+  function desenhar() {
+    var select = document.querySelector('[name=produto]');
+    var escolhido = select.value;
+    select.textContent = '';
+    estado.produtos.forEach(function (nome) {
+      var op = document.createElement('option');
+      op.value = op.textContent = nome;
+      select.appendChild(op);
+    });
+    if (estado.produtos.indexOf(escolhido) !== -1) select.value = escolhido;
+
+    var r = resumir(estado.produtos, estado.lancamentos);
+    var corpo = document.getElementById('resumo');
+    var rodape = document.getElementById('totais');
+    corpo.textContent = '';
+    rodape.textContent = '';
+    if (!estado.produtos.length) {
+      var tr = document.createElement('tr');
+      var td = celula(tr, 'Cadastre um produto para começar.', 'vazio');
+      td.colSpan = 9;
+      corpo.appendChild(tr);
+    } else {
+      r.porProduto.forEach(function (p) { linhaResumo(corpo, p.produto, p); });
+      linhaResumo(rodape, 'Total', r.totais);
+    }
+
+    var lista = document.getElementById('lista');
+    lista.textContent = '';
+    estado.lancamentos
+      .map(function (l, i) { return { l: l, i: i }; })
+      .sort(function (a, b) { return a.l.data > b.l.data ? -1 : a.l.data < b.l.data ? 1 : b.i - a.i; })
+      .forEach(function (x) {
+        var l = x.l, tr = document.createElement('tr');
+        celula(tr, l.data.split('-').reverse().join('/'));
+        celula(tr, l.produto);
+        celula(tr, l.tipo === 'entrada' ? 'Entrada' : 'Saída');
+        celula(tr, numero.format(l.quantidade));
+        celula(tr, reais.format(l.valor));
+        celula(tr, reais.format(l.quantidade * l.valor));
+        var td = celula(tr, '');
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'remover';
+        b.textContent = 'Remover';
+        b.setAttribute('aria-label', 'Remover lançamento de ' + l.produto + ' em ' + l.data);
+        b.addEventListener('click', function () {
+          var res = removerLancamento(estado.produtos, estado.lancamentos, x.i);
+          if (res.erro) return avisar('msg-lista', res.erro, true);
+          estado.lancamentos = res.lancamentos;
+          salvar();
+          avisar('msg-lista', 'Lançamento removido.');
+          desenhar();
+        });
+        td.appendChild(b);
+        lista.appendChild(tr);
+      });
+    if (!estado.lancamentos.length) {
+      var vazio = document.createElement('tr');
+      celula(vazio, 'Nenhum lançamento ainda.', 'vazio').colSpan = 7;
+      lista.appendChild(vazio);
+    }
+  }
+
+  document.getElementById('form-produto').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var campo = this.elements.nome;
+    var r = adicionarProduto(estado.produtos, campo.value);
+    if (r.erro) return avisar('msg-produto', r.erro, true);
+    estado.produtos = r.produtos;
+    salvar();
+    avisar('msg-produto', 'Produto "' + campo.value.trim() + '" cadastrado.');
+    campo.value = '';
+    desenhar();
+  });
+
+  var formLanc = document.getElementById('form-lancamento');
+  formLanc.elements.data.value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  formLanc.elements.tipo.addEventListener('change', function () {
+    document.getElementById('rotulo-valor').textContent = this.value === 'entrada' ? 'Custo unitário (R$)' : 'Preço de venda unitário (R$)';
+  });
+  formLanc.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var f = this.elements;
+    var r = adicionarLancamento(estado.produtos, estado.lancamentos, {
+      produto: f.produto.value, tipo: f.tipo.value, data: f.data.value, quantidade: f.quantidade.value, valor: f.valor.value
+    });
+    if (r.erro) return avisar('msg-lancamento', r.erro, true);
+    estado.lancamentos = r.lancamentos;
+    salvar();
+    avisar('msg-lancamento', (f.tipo.value === 'entrada' ? 'Entrada' : 'Saída') + ' lançada.');
+    f.quantidade.value = '';
+    f.valor.value = '';
+    desenhar();
+  });
+
+  document.getElementById('exportar').addEventListener('click', function () {
+    var blob = new Blob(['\uFEFF' + paraCSV(estado.produtos, estado.lancamentos)], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'pedidos-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    avisar('msg-backup', 'CSV exportado.');
+  });
+
+  var arquivo = document.getElementById('arquivo');
+  document.getElementById('importar').addEventListener('click', function () { arquivo.click(); });
+  arquivo.addEventListener('change', function () {
+    var f = arquivo.files[0];
+    if (!f) return;
+    f.text().then(function (texto) {
+      var r = lerCSV(texto);
+      arquivo.value = '';
+      if (r.erro) return avisar('msg-backup', 'Importação cancelada. ' + r.erro, true);
+      if ((estado.produtos.length || estado.lancamentos.length) &&
+          !confirm('Importar vai substituir os dados atuais deste navegador. Continuar?')) return;
+      estado = { produtos: r.produtos, lancamentos: r.lancamentos };
+      salvar();
+      avisar('msg-backup', 'Importados ' + r.produtos.length + ' produtos e ' + r.lancamentos.length + ' lançamentos.');
+      desenhar();
+    });
+  });
+
+  desenhar();
+</script>
+</body>
+</html>
