@@ -42,14 +42,65 @@ function naoCalculavel(mensagem) {
 }
 
 // Situação da margem do período frente à margem desejada (as duas em fração, 0,3 = 30%).
-// Acima da meta: margem >= desejada. Prejuízo: margem < 0. Abaixo da meta: o que sobra.
-function seloMargem(margemPeriodo, margemDesejada) {
+// Acima da meta: margem >= desejada, ou falta no preço menor que R$ 0,01 (o preço já
+// está no centavo certo). Prejuízo: margem < 0. Abaixo da meta: o que sobra.
+function seloMargem(margemPeriodo, margemDesejada, faltaNoPreco) {
   if (!margemPeriodo.calculavel) return naoCalculavel(margemPeriodo.mensagem);
   var m = margemPeriodo.valor;
   if (m < 0) return ok('Prejuízo');
   // Tolerância para ruído de ponto flutuante quando a margem bate exatamente na meta.
   if (m >= margemDesejada - 1e-9) return ok('Acima da meta');
+  if (typeof faltaNoPreco === 'number' && faltaNoPreco < 0.01) return ok('Acima da meta');
   return ok('Abaixo da meta');
+}
+
+// Arredonda para cima para 1, 2, 2,5 ou 5 × 10^n (escala de eixo legível).
+function tetoRedondo(valor) {
+  if (valor <= 0) return 1;
+  var potencia = Math.pow(10, Math.floor(Math.log10(valor)));
+  var passos = [1, 2, 2.5, 5, 10];
+  for (var i = 0; i < passos.length; i++) {
+    if (valor <= passos[i] * potencia + 1e-9 * potencia) return passos[i] * potencia;
+  }
+  return 10 * potencia;
+}
+
+// Pontos do gráfico do ponto de equilíbrio: receita = preço × q e custo total = fixos + custo
+// variável unitário × q, de 0 até 2 × max(quantidade, ponto de equilíbrio em unidades).
+// Sem equilíbrio (lucro unitário <= 0) devolve aviso, nunca NaN nem Infinity.
+function graficoEquilibrio(dados) {
+  var preco = dados.preco, variavel = dados.custoVariavelUnitario;
+  var fixos = dados.fixos, quantidade = dados.quantidade;
+  var lucroUnitario = limpar(preco - variavel);
+  if (![preco, variavel, fixos, quantidade].every(isFinite)) {
+    return naoCalculavel('Gráfico indisponível: corrija as entradas.');
+  }
+  if (lucroUnitario <= 0) {
+    return naoCalculavel('Sem ponto de equilíbrio: o lucro unitário é zero ou negativo, então o custo total nunca fica abaixo da receita.');
+  }
+  var equilibrioExato = Math.round((fixos / lucroUnitario) * 1e9) / 1e9;
+  var equilibrioUnidades = Math.ceil(equilibrioExato);
+  // Quantidade e fixos zerados deixariam o eixo sem largura; 10 unidades mostram as retas.
+  var qMax = 2 * Math.max(quantidade, equilibrioUnidades) || 10;
+  var pontos = [];
+  for (var i = 0; i <= 10; i++) {
+    var q = qMax * i / 10;
+    pontos.push({ quantidade: q, receita: preco * q, custoTotal: fixos + variavel * q });
+  }
+  var yMax = tetoRedondo(Math.max(preco * qMax, fixos + variavel * qMax));
+  var marcasY = [];
+  for (var j = 0; j <= 4; j++) marcasY.push(yMax * j / 4);
+  return ok({
+    qMax: qMax,
+    yMax: yMax,
+    marcasY: marcasY,
+    pontos: pontos,
+    cruzamento: {
+      quantidade: equilibrioExato,
+      unidades: equilibrioUnidades,
+      reais: preco * equilibrioExato
+    }
+  });
 }
 
 // Quanto o preço precisa subir por unidade para a margem do período chegar à desejada:
@@ -148,9 +199,11 @@ function calcular(entradas) {
     ? ok(precoIdeal.valor * b9)
     : naoCalculavel(precoIdeal.mensagem);
 
-  var selo = seloMargem(margemPeriodo, b9);
+  var selo = seloMargem(margemPeriodo, b9,
+    precoIdealComFixos.calculavel ? precoIdealComFixos.valor - b2 : undefined);
   return {
     valido: true,
+    grafico: graficoEquilibrio({ preco: b2, custoVariavelUnitario: custoTotal, fixos: b8, quantidade: b7 }),
     alertas: {
       seloMargem: selo,
       faltaPorUnidade: faltaPorUnidade(selo, precoIdealComFixos, b2),
@@ -178,4 +231,4 @@ function calcular(entradas) {
   };
 }
 
-if (typeof module !== 'undefined') module.exports = { calcular, lerNumero, seloMargem, faltaPorUnidade, unidadesParaMeta };
+if (typeof module !== 'undefined') module.exports = { calcular, lerNumero, seloMargem, faltaPorUnidade, unidadesParaMeta, graficoEquilibrio };
