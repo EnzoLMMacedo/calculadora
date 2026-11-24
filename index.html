@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de vendas e custos</title>
+<style>
+  :root{--fundo:#0a0a0a;--cartao:#141414;--borda:#262626;--borda-input:#737373;--texto:#fafafa;--apoio:#a3a3a3;--destaque:#facc15;--critico:#ff5c5c}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fundo);color:var(--texto);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:1100px;margin:0 auto;padding:24px 16px;display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:24px;align-items:start}
+  h1{grid-column:1/-1;margin:0;font-size:1.6rem;color:var(--destaque)}
+  h2{margin:0 0 12px;font-size:1.1rem;color:var(--destaque)}
+  section{background:var(--cartao);border:1px solid var(--borda);border-radius:12px;padding:16px}
+  .resultados{display:grid;gap:16px;min-width:0}
+  label{display:block;margin-bottom:12px;color:var(--apoio);font-size:.9rem}
+  input{display:block;width:100%;margin-top:4px;padding:10px 12px;background:var(--fundo);color:var(--texto);border:1px solid var(--borda-input);border-radius:8px;font:inherit}
+  input:focus{outline:2px solid var(--texto);outline-offset:1px}
+  input[aria-invalid="true"]{border-color:var(--critico)}
+  button{width:100%;margin-top:4px;padding:10px 12px;background:var(--destaque);color:#0a0a0a;border:0;border-radius:8px;font:inherit;font-weight:700;cursor:pointer}
+  dl{margin:0;display:grid;grid-template-columns:1fr auto;gap:8px 16px}
+  dt{color:var(--apoio)}
+  dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;overflow-wrap:anywhere}
+  .negativo{color:var(--critico)}
+  .aviso{color:var(--critico);font-weight:400;font-size:.9rem;text-align:left}
+  #erros{margin:0;padding-left:20px;color:var(--critico)}
+  #erros:empty{display:none}
+  @media (max-width:720px){
+    main{grid-template-columns:minmax(0,1fr)}
+    dl{grid-template-columns:minmax(0,1fr)}
+    dd{text-align:left;margin-bottom:4px}
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Calculadora de vendas e custos</h1>
+
+  <section aria-labelledby="t-entradas">
+    <h2 id="t-entradas">Entradas</h2>
+    <form id="form" novalidate>
+      <label>Preço de venda unitário (R$)<input name="preco" inputmode="decimal" value="100"></label>
+      <label>Custo do produto unitário (R$)<input name="custo" inputmode="decimal" value="40"></label>
+      <label>Outros custos variáveis unitários (R$)<input name="outros" inputmode="decimal" value="5"></label>
+      <label>Impostos (% sobre a venda)<input name="impostos" inputmode="decimal" value="6"></label>
+      <label>Comissões/taxas (% sobre a venda)<input name="comissoes" inputmode="decimal" value="10"></label>
+      <label>Quantidade vendida<input name="quantidade" inputmode="decimal" value="100"></label>
+      <label>Custos fixos do período (R$)<input name="fixos" inputmode="decimal" value="2000"></label>
+      <label>Margem de lucro desejada (%)<input name="margem" inputmode="decimal" value="30"></label>
+      <button type="reset">Restaurar exemplo</button>
+    </form>
+  </section>
+
+  <div class="resultados" aria-live="polite">
+    <ul id="erros"></ul>
+
+    <section aria-labelledby="t-unidade">
+      <h2 id="t-unidade">Por unidade</h2>
+      <dl>
+        <dt>Impostos</dt><dd id="impostos"></dd>
+        <dt>Comissões/taxas</dt><dd id="comissoes"></dd>
+        <dt>Custo total unitário</dt><dd id="custoTotal"></dd>
+        <dt>Lucro unitário (margem de contribuição)</dt><dd id="lucro"></dd>
+        <dt>Margem líquida</dt><dd id="margemLiquida"></dd>
+        <dt>Markup</dt><dd id="markup"></dd>
+      </dl>
+    </section>
+
+    <section aria-labelledby="t-periodo">
+      <h2 id="t-periodo">Do período</h2>
+      <dl>
+        <dt>Receita total</dt><dd id="receita"></dd>
+        <dt>Custos variáveis totais</dt><dd id="custosVariaveis"></dd>
+        <dt>Lucro total</dt><dd id="lucroTotal"></dd>
+        <dt>Margem de lucro do período (lucro total ÷ receita)</dt><dd id="margemPeriodo"></dd>
+        <dt>Ponto de equilíbrio (unidades)</dt><dd id="peUnidades"></dd>
+        <dt>Ponto de equilíbrio (R$)</dt><dd id="peReais"></dd>
+      </dl>
+    </section>
+
+    <section aria-labelledby="t-ideal">
+      <h2 id="t-ideal">Preço ideal</h2>
+      <dl>
+        <dt>Preço para atingir a margem desejada</dt><dd id="precoIdeal"></dd>
+        <dt>Valor da margem de lucro por unidade (R$)</dt><dd id="lucroNoPrecoIdeal"></dd>
+      </dl>
+    </section>
+  </div>
+</main>
+
+<script src="calculadora.js"></script>
+<script>
+  var form = document.getElementById('form');
+  var reais = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  var decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var inteiro = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+
+  var formatos = {
+    reais: function (v) { return reais.format(v); },
+    pct: function (v) { return decimal.format(v * 100) + '%'; },
+    un: function (v) { return inteiro.format(v) + ' un'; }
+  };
+
+  function mostrar(id, item, formato, destacarNegativo) {
+    var el = document.getElementById(id);
+    var valor = typeof item === 'number' ? item : item.valor;
+    el.className = '';
+    if (typeof item === 'object' && !item.calculavel) {
+      el.textContent = item.mensagem;
+      el.className = 'aviso';
+      return;
+    }
+    el.textContent = formatos[formato](valor);
+    if (destacarNegativo && valor < 0) el.className = 'negativo';
+  }
+
+  function atualizar() {
+    var entradas = {};
+    Array.prototype.forEach.call(form.elements, function (el) {
+      if (el.name) entradas[el.name] = el.value;
+    });
+    var r = calcular(entradas);
+    var lista = document.getElementById('erros');
+    lista.innerHTML = '';
+
+    Array.prototype.forEach.call(form.elements, function (el) {
+      if (el.name) el.removeAttribute('aria-invalid');
+    });
+
+    if (!r.valido) {
+      r.erros.forEach(function (erro) {
+        var li = document.createElement('li');
+        li.textContent = erro.mensagem;
+        lista.appendChild(li);
+        form.elements[erro.campo].setAttribute('aria-invalid', 'true');
+      });
+      document.querySelectorAll('dd').forEach(function (dd) { dd.textContent = '—'; dd.className = ''; });
+      return;
+    }
+
+    var u = r.porUnidade, p = r.periodo;
+    mostrar('impostos', u.impostos, 'reais');
+    mostrar('comissoes', u.comissoes, 'reais');
+    mostrar('custoTotal', u.custoTotal, 'reais');
+    mostrar('lucro', u.lucro, 'reais', true);
+    mostrar('margemLiquida', u.margemLiquida, 'pct');
+    mostrar('markup', u.markup, 'pct');
+    mostrar('receita', p.receita, 'reais');
+    mostrar('custosVariaveis', p.custosVariaveis, 'reais');
+    mostrar('lucroTotal', p.lucroTotal, 'reais', true);
+    mostrar('margemPeriodo', p.margemPeriodo, 'pct', true);
+    mostrar('peUnidades', p.peUnidades, 'un');
+    mostrar('peReais', p.peReais, 'reais');
+    mostrar('precoIdeal', r.precoIdeal, 'reais');
+    mostrar('lucroNoPrecoIdeal', r.lucroNoPrecoIdeal, 'reais');
+  }
+
+  form.addEventListener('input', atualizar);
+  form.addEventListener('reset', function () { setTimeout(atualizar, 0); });
+  atualizar();
+</script>
+</body>
+</html>
