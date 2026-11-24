@@ -175,3 +175,63 @@ test('custos fixos zero: os dois preços ideais são iguais', () => {
   assert.equal(r.precoIdealComFixos.valor, r.precoIdeal.valor);
   assert.equal(r.precoIdealComFixos.valor.toFixed(2), '83.33');
 });
+
+const { seloMargem, faltaPorUnidade, unidadesParaMeta } = require('./calculadora.js');
+
+test('selo: exemplo padrão (19% contra 30%) fica abaixo da meta', () => {
+  const r = calcular(exemplo);
+  assert.equal(r.alertas.seloMargem.valor, 'Abaixo da meta');
+});
+
+test('selo: acima da meta, exatamente na meta e prejuízo', () => {
+  assert.equal(calcular({ ...exemplo, margem: 10 }).alertas.seloMargem.valor, 'Acima da meta');
+  assert.equal(calcular({ ...exemplo, margem: 19 }).alertas.seloMargem.valor, 'Acima da meta');
+  assert.equal(calcular({ ...exemplo, fixos: 5000 }).alertas.seloMargem.valor, 'Prejuízo');
+  assert.equal(seloMargem({ calculavel: true, valor: 0 }, 0.3).valor, 'Abaixo da meta');
+});
+
+test('selo: receita zero deixa o selo sem cálculo', () => {
+  const r = calcular({ ...exemplo, quantidade: 0 });
+  assert.equal(r.alertas.seloMargem.calculavel, false);
+  assert.equal(r.alertas.faltaPorUnidade.calculavel, false);
+  semNaNNemInfinity(r);
+});
+
+test('quanto falta por unidade: preço ideal com fixos − preço atual (20,37)', () => {
+  const r = calcular(exemplo);
+  perto(r.alertas.faltaPorUnidade.valor, 20.37);
+  assert.ok(Math.abs(r.alertas.faltaPorUnidade.valor - (r.precoIdealComFixos.valor - 100)) < 1e-9);
+});
+
+test('quanto falta: acima da meta não mostra valor; margem impossível vira aviso', () => {
+  assert.equal(calcular({ ...exemplo, margem: 10 }).alertas.faltaPorUnidade.calculavel, false);
+  const r = calcular({ ...exemplo, margem: 90 });
+  assert.equal(r.alertas.faltaPorUnidade.calculavel, false);
+  assert.match(r.alertas.faltaPorUnidade.mensagem, /100% ou mais/);
+});
+
+test('meta de lucro: (fixos + lucro desejado) / lucro unitário, para cima', () => {
+  assert.equal(calcular({ ...exemplo, lucroDesejado: 3000 }).alertas.unidadesParaMeta.valor, 129);
+  assert.equal(calcular({ ...exemplo, lucroDesejado: '1.900' }).alertas.unidadesParaMeta.valor, 100);
+  assert.equal(unidadesParaMeta(0, 0, 39).valor, 0);
+});
+
+test('meta de lucro: lucro unitário zero ou negativo vira aviso', () => {
+  for (const preco of [45 / 0.84, 50]) {
+    const r = calcular({ ...exemplo, preco, lucroDesejado: 1000 });
+    assert.equal(r.alertas.unidadesParaMeta.calculavel, false);
+    assert.match(r.alertas.unidadesParaMeta.mensagem, /zero ou negativo/);
+    semNaNNemInfinity(r);
+  }
+});
+
+test('meta de lucro: campo vazio é opcional; negativo ou inválido é recusado', () => {
+  const r = calcular({ ...exemplo, lucroDesejado: '' });
+  assert.equal(r.valido, true);
+  assert.equal(r.alertas.unidadesParaMeta.calculavel, false);
+  for (const v of ['-1', 'abc']) {
+    const e = calcular({ ...exemplo, lucroDesejado: v });
+    assert.equal(e.valido, false);
+    assert.equal(e.erros[0].campo, 'lucroDesejado');
+  }
+});
